@@ -19,6 +19,7 @@ export function foldSessionUsage(
   let cacheCreationTokens: number | undefined = undefined;
   let costUsd: number | undefined = undefined;
   let modelName = "";
+  let hasUsage = false;
 
   let systemPromptChars = 0;
   let toolsChars = 0;
@@ -58,67 +59,123 @@ export function foldSessionUsage(
     }
 
     if (ev.type === "tool/result") {
-      const msg = (ev.data as { message?: { content?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> } })?.message;
-      const text = (msg?.content ?? []).flatMap((c) => c.content ?? []).filter((b) => b.type === "text" && b.text).map((b) => b.text).join("");
-      toolOutputsChars += text.length;
+      const d = ev.data as {
+        message?: { content?: Array<{ type?: string; text?: string; content?: Array<{ type?: string; text?: string }> }> };
+        error?: { message?: string };
+      } | undefined;
+      const blocks = d?.message?.content ?? [];
+      for (const block of blocks) {
+        if (typeof block.text === "string") toolOutputsChars += block.text.length;
+        if (Array.isArray(block.content)) {
+          for (const sub of block.content) {
+            if (sub && typeof sub.text === "string") toolOutputsChars += sub.text.length;
+          }
+        }
+      }
+      if (d?.error?.message) {
+        toolOutputsChars += d.error.message.length;
+      }
+    }
+
+    if (ev.type === "assistant/chunk") {
+      const chunk = (ev.data as {
+        chunk?: {
+          type?: string;
+          usage?: {
+            inputTokens?: number;
+            promptTokens?: number;
+            outputTokens?: number;
+            completionTokens?: number;
+            reasoningTokens?: number;
+            cacheReadTokens?: number;
+            cacheWriteTokens?: number;
+            cachedTokens?: number;
+            costUsd?: number;
+          };
+        };
+      } | undefined)?.chunk;
+
+      if (chunk?.type === "usage" && chunk.usage) {
+        hasUsage = true;
+        const u = chunk.usage;
+        if (typeof u.inputTokens === "number" && u.inputTokens > 0) promptTokens = Math.max(promptTokens, u.inputTokens);
+        else if (typeof u.promptTokens === "number" && u.promptTokens > 0) promptTokens = Math.max(promptTokens, u.promptTokens);
+
+        if (typeof u.outputTokens === "number") completionTokens += u.outputTokens;
+        else if (typeof u.completionTokens === "number") completionTokens += u.completionTokens;
+
+        if (typeof u.reasoningTokens === "number") reasoningTokens = (reasoningTokens ?? 0) + u.reasoningTokens;
+        if (typeof u.cacheReadTokens === "number") cacheReadTokens = (cacheReadTokens ?? 0) + u.cacheReadTokens;
+        else if (typeof u.cachedTokens === "number") cacheReadTokens = (cacheReadTokens ?? 0) + u.cachedTokens;
+        if (typeof u.cacheWriteTokens === "number") cacheCreationTokens = (cacheCreationTokens ?? 0) + u.cacheWriteTokens;
+        if (typeof u.costUsd === "number") costUsd = (costUsd ?? 0) + u.costUsd;
+      }
     }
 
     if (ev.type === "assistant/message") {
       const d = ev.data as {
-        usage?: {
-          inputTokens?: number;
-          outputTokens?: number;
-          reasoningTokens?: number;
-          cacheReadTokens?: number;
-          cacheCreationTokens?: number;
-          costUsd?: number;
-        };
+        usage?: Record<string, unknown>;
         message?: {
           content?: Array<{ type: string; text?: string }>;
+          usage?: Record<string, unknown>;
           source?: { model?: string };
         };
       };
       if (d?.message?.source?.model) modelName = d.message.source.model;
-      if (d?.usage) {
-        if (d.usage.inputTokens) promptTokens = Math.max(promptTokens, d.usage.inputTokens);
-        if (d.usage.outputTokens) completionTokens += d.usage.outputTokens;
-        if (d.usage.reasoningTokens) reasoningTokens = (reasoningTokens ?? 0) + d.usage.reasoningTokens;
-        if (d.usage.cacheReadTokens) cacheReadTokens = (cacheReadTokens ?? 0) + d.usage.cacheReadTokens;
-        if (d.usage.cacheCreationTokens) cacheCreationTokens = (cacheCreationTokens ?? 0) + d.usage.cacheCreationTokens;
-        if (d.usage.costUsd) costUsd = (costUsd ?? 0) + d.usage.costUsd;
+      const u = (d?.message?.usage ?? d?.usage) as {
+        inputTokens?: number;
+        promptTokens?: number;
+        outputTokens?: number;
+        completionTokens?: number;
+        reasoningTokens?: number;
+        cacheReadTokens?: number;
+        cacheWriteTokens?: number;
+        cachedTokens?: number;
+        costUsd?: number;
+      } | undefined;
+
+      if (u) {
+        hasUsage = true;
+        if (typeof u.inputTokens === "number" && u.inputTokens > 0) promptTokens = Math.max(promptTokens, u.inputTokens);
+        else if (typeof u.promptTokens === "number" && u.promptTokens > 0) promptTokens = Math.max(promptTokens, u.promptTokens);
+
+        if (typeof u.outputTokens === "number") completionTokens = Math.max(completionTokens, u.outputTokens);
+        else if (typeof u.completionTokens === "number") completionTokens = Math.max(completionTokens, u.completionTokens);
+
+        if (typeof u.reasoningTokens === "number") reasoningTokens = Math.max(reasoningTokens ?? 0, u.reasoningTokens);
+        if (typeof u.cacheReadTokens === "number") cacheReadTokens = Math.max(cacheReadTokens ?? 0, u.cacheReadTokens);
+        else if (typeof u.cachedTokens === "number") cacheReadTokens = Math.max(cacheReadTokens ?? 0, u.cachedTokens);
+        if (typeof u.cacheWriteTokens === "number") cacheCreationTokens = Math.max(cacheCreationTokens ?? 0, u.cacheWriteTokens);
+        if (typeof u.costUsd === "number") costUsd = u.costUsd;
       }
+
       const text = (d?.message?.content ?? []).filter((b) => b.type === "text" || b.type === "reasoning").map((b) => b.text ?? "").join("");
       conversationChars += text.length;
     }
   }
 
-  const estSystem = estimateTokens(systemPromptChars > 0 ? "x".repeat(systemPromptChars) : undefined);
-  const estTools = estimateTokens(toolsChars > 0 ? "x".repeat(toolsChars) : undefined);
-  const estSkills = estimateTokens(skillsChars > 0 ? "x".repeat(skillsChars) : undefined);
-  const estToolOutputs = estimateTokens(toolOutputsChars > 0 ? "x".repeat(toolOutputsChars) : undefined);
-  const estConversation = estimateTokens(conversationChars > 0 ? "x".repeat(conversationChars) : undefined);
+  const estToolOutputs = Math.round(toolOutputsChars / 4);
+  const estSkills = Math.round(skillsChars / 4);
+  const estSystem = systemPromptChars > 0 ? Math.round(systemPromptChars / 4) : Math.min(promptTokens > 0 ? promptTokens : 350, 350);
+  const estTools = toolsChars > 0 ? Math.round(toolsChars / 4) : Math.min(Math.max(0, (promptTokens > 0 ? promptTokens : 3000) - estSystem), 2650);
+  const estConversation = promptTokens > 0
+    ? Math.max(0, promptTokens - estSystem - estTools - estSkills - estToolOutputs)
+    : Math.round(conversationChars / 4);
 
-  let breakdown: ContextRingBreakdown;
-  const totalEstimatedPrompt = estSystem + estTools + estSkills + estToolOutputs + estConversation;
+  if (promptTokens === 0) {
+    promptTokens = estSystem + estTools + estSkills + estToolOutputs + estConversation;
+  }
 
-  if (promptTokens > 0 && totalEstimatedPrompt > 0) {
-    const scale = promptTokens / totalEstimatedPrompt;
-    breakdown = {
-      systemPrompt: Math.round(estSystem * scale),
-      tools: Math.round(estTools * scale),
-      skills: Math.round(estSkills * scale),
-      toolOutputs: Math.round(estToolOutputs * scale),
-      conversation: Math.max(0, promptTokens - Math.round((estSystem + estTools + estSkills + estToolOutputs) * scale)),
-    };
-  } else {
-    breakdown = {
-      systemPrompt: estSystem,
-      tools: estTools,
-      skills: estSkills,
-      toolOutputs: estToolOutputs,
-      conversation: estConversation,
-    };
-    if (promptTokens === 0) promptTokens = totalEstimatedPrompt;
+  const breakdown: ContextRingBreakdown = {
+    systemPrompt: estSystem,
+    tools: estTools,
+    skills: estSkills,
+    toolOutputs: estToolOutputs,
+    conversation: estConversation,
+  };
+
+  if (!hasUsage && promptTokens === 0 && completionTokens === 0 && events.length === 0) {
+    return undefined;
   }
 
   if (costUsd === undefined && modelName) {
