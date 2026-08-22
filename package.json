@@ -74,13 +74,11 @@
     }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "file:../cairn/node_modules/@deepseek-ai/cordis",
-    "@deepseek-ai/dsh-session": "file:../cairn/node_modules/@deepseek-ai/dsh-session",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "react": "file:../cairn/node_modules/react",
-    "react-dom": "file:../cairn/node_modules/react-dom",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }
