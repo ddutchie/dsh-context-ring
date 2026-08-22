@@ -11,7 +11,14 @@ function formatTokens(num?: number): string {
   return num.toLocaleString();
 }
 
-export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usage }) => {
+export interface ContextRingWidgetProps {
+  usage?: ContextRingUsage;
+  useProjection?: (key: string) => any;
+  useSession?: (selector: (state: any) => any) => any;
+  t?: (key: string, args?: any) => string;
+}
+
+export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -25,6 +32,29 @@ export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usag
     window.addEventListener("mousedown", handleDown);
     return () => window.removeEventListener("mousedown", handleDown);
   }, [open]);
+
+  // Read from props.usage (Cairn) or projections (DSH)
+  const tokenUsage = props.useProjection ? props.useProjection("tokenUsage") : undefined;
+  const contextPressure = props.useProjection ? props.useProjection("contextPressure") : undefined;
+  const contextBreakdown = props.useProjection ? props.useProjection("contextBreakdown") : undefined;
+
+  const usage: ContextRingUsage | undefined = props.usage ?? (tokenUsage || contextPressure ? {
+    promptTokens: tokenUsage?.inputTokens ?? contextPressure?.current ?? 0,
+    completionTokens: tokenUsage?.outputTokens ?? 0,
+    reasoningTokens: tokenUsage?.reasoningTokens ?? 0,
+    cacheReadTokens: tokenUsage?.cacheReadTokens ?? 0,
+    cacheCreationTokens: tokenUsage?.cacheCreationTokens ?? 0,
+    costUsd: tokenUsage?.costUsd,
+    contextLimit: contextPressure?.capacity,
+    contextWindow: contextPressure?.capacity,
+    breakdown: contextBreakdown ? {
+      systemPrompt: contextBreakdown.systemTokens ?? 0,
+      tools: contextBreakdown.toolsTokens ?? 0,
+      skills: 0,
+      toolOutputs: 0,
+      conversation: contextBreakdown.messageTokens ?? 0,
+    } : undefined,
+  } : undefined);
 
   if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return null;
 
@@ -51,6 +81,9 @@ export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usag
     { label: "Conversation", count: b.conversation, color: "#22c55e" },
   ];
 
+  const contextLimit = usage.contextLimit || usage.contextWindow || 128000;
+  const percentFull = Math.min(100, Math.round((promptTokens / contextLimit) * 100));
+
   return (
     <div className="relative inline-flex items-center" ref={popoverRef}>
       <button
@@ -59,64 +92,46 @@ export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usag
         className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface-2,rgba(128,128,128,0.1))] hover:bg-[var(--surface-3,rgba(128,128,128,0.18))] border border-[var(--border,rgba(128,128,128,0.2))] text-xs font-mono text-[var(--text-secondary,#aaa)] transition-all cursor-pointer shadow-sm select-none"
         title="Click to view full context & token breakdown"
       >
-        <ContextRing usage={usage} size={16} strokeWidth={2.5} />
-        <span className="font-semibold text-[var(--text-primary,#eee)]">
-          {promptTokens.toLocaleString()} tokens
+        <ContextRing usage={usage} size={14} strokeWidth={2.5} />
+        <span className="font-medium text-[var(--text-primary,#ddd)]">
+          {formatTokens(promptTokens)}
         </span>
-        {costUsd != null && costUsd > 0 && (
-          <span className="text-[var(--text-tertiary,#777)]">· ${costUsd < 0.01 ? "<0.01" : costUsd.toFixed(4)}</span>
-        )}
       </button>
 
+      {/* Popover Breakdown Card */}
       {open && (
-        <div
-          className="absolute bottom-full mb-2 left-0 z-50 w-72 p-3.5 rounded-xl bg-[var(--surface-1,#18181b)] border border-[var(--border,#27272a)] shadow-2xl text-xs font-sans text-[var(--text-primary,#f4f4f5)]"
-          style={{ backdropFilter: "blur(12px)" }}
-        >
+        <div className="absolute bottom-full mb-2 left-0 z-50 w-72 p-3.5 rounded-xl bg-[var(--surface-1,#18181b)] border border-[var(--border,#27272a)] shadow-2xl backdrop-blur-md text-xs text-[var(--text-primary,#f4f4f5)] animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto">
           {/* Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#27272a)]">
-            <div className="flex items-center gap-2">
-              <ContextRing usage={usage} size={18} strokeWidth={3} />
-              <div className="flex flex-col">
-              <span className="font-semibold text-sm">Context Breakdown</span>
-              <span className="text-[0.7rem] text-[var(--text-tertiary,#71717a)] font-mono">
-                {Math.round((promptTokens / (usage.contextLimit || 128000)) * 100)}% Full (~{formatTokens(promptTokens)} / {formatTokens(usage.contextLimit || 128000)})
-              </span>
-            </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="text-[var(--text-tertiary,#71717a)] hover:text-[var(--text-primary,#f4f4f5)] p-0.5 rounded cursor-pointer"
-            >
-              ✕
-            </button>
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--border,#27272a)]">
+            <span className="font-semibold text-xs text-[var(--text-primary,#f4f4f5)]">Context Breakdown</span>
+            <span className="text-[0.7rem] font-mono px-1.5 py-0.5 rounded bg-[var(--surface-2,#27272a)] text-[var(--text-secondary,#a1a1aa)]">
+              {percentFull}% Full (~{formatTokens(promptTokens)} / {formatTokens(contextLimit)})
+            </span>
           </div>
 
-          {/* Segmented bar */}
-          <div className="w-full h-2 bg-[var(--border,rgba(128,128,128,0.2))] rounded-full overflow-hidden flex mb-3">
-            {categories.map((c) => {
-              const pct = (c.count / promptTokens) * 100;
-              if (pct <= 0) return null;
+          {/* Breakdown progress bar */}
+          <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-[var(--surface-3,#3f3f46)] my-3 gap-0.5">
+            {categories.map((c, i) => {
+              if (!c.count || c.count <= 0) return null;
+              const width = Math.max(1, (c.count / promptTokens) * 100);
               return (
                 <div
-                  key={c.label}
-                  style={{ width: `${pct}%`, backgroundColor: c.color }}
-                  className="h-full"
-                  title={`${c.label}: ${c.count.toLocaleString()} tokens (${Math.round(pct)}%)`}
+                  key={i}
+                  style={{ width: `${width}%`, backgroundColor: c.color }}
+                  title={`${c.label}: ${formatTokens(c.count)}`}
                 />
               );
             })}
           </div>
 
-          {/* Categories Legend */}
-          <div className="space-y-1.5 mb-3 font-mono text-[0.75rem]">
-            {categories.map((c) => {
-              if (c.count <= 0 && c.label === "Skills") return null;
+          {/* Prompt Breakdown List */}
+          <div className="space-y-1.5 text-[0.75rem] font-mono">
+            {categories.map((c, i) => {
+              if (!c.count || c.count <= 0) return null;
               return (
-                <div key={c.label} className="flex items-center justify-between">
+                <div key={i} className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: c.color }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
                     <span className="text-[var(--text-secondary,#a1a1aa)] font-sans">{c.label}</span>
                   </div>
                   <span className="font-medium text-[var(--text-primary,#f4f4f5)]">{formatTokens(c.count)}</span>
@@ -163,9 +178,17 @@ export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usag
 };
 
 export function apply(ctx: any): void {
-  if (ctx?.slots?.register) {
+  if (ctx?.slots?.inject) {
+    ctx.slots.inject("conversation.composer.dock", () =>
+      ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget)
+    );
+    ctx.slots.inject("conversation.input.dock", () =>
+      ctx.slots.register({ name: "conversation.input.dock", id: "context-ring", order: 5 }, ContextRingWidget)
+    );
+  } else if (ctx?.slots?.register) {
     ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget);
   }
+
   if (ctx?.registerChatFooter) {
     ctx.registerChatFooter("context-ring", ContextRingWidget, 5);
   }

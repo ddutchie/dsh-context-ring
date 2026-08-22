@@ -16,7 +16,7 @@ export interface ContextRingUsage {
   costEstimated?: boolean;
   contextLimit?: number;
   contextWindow?: number;
-  breakdown: ContextRingBreakdown;
+  breakdown?: ContextRingBreakdown;
 }
 
 export interface ModelPricingRate {
