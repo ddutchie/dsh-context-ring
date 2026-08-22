@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-context-ring
+# dsh-context-ring
 
 > **DSH Context Ring Plugin**: Real-time token provenance, prompt composition breakdown, and interactive visual ring projection for the DeepSeek Harness (DSH).
 
@@ -21,7 +21,7 @@
 ## Installation
 
 ```bash
-npm install @deepseek-ai/dsh-context-ring
+npm install dsh-context-ring
 ```
 
 ---
@@ -31,7 +31,7 @@ npm install @deepseek-ai/dsh-context-ring
 ### 1. Pure Projection (Server or Client)
 
 ```ts
-import { foldSessionUsage } from "@deepseek-ai/dsh-context-ring";
+import { foldSessionUsage } from "dsh-context-ring";
 
 const usage = foldSessionUsage(sessionEvents);
 console.log(usage.breakdown);
@@ -42,7 +42,7 @@ console.log(usage.breakdown);
 
 ```ts
 import { Context } from "@deepseek-ai/cordis";
-import { contextRingPlugin } from "@deepseek-ai/dsh-context-ring";
+import { contextRingPlugin } from "dsh-context-ring";
 
 const ctx = new Context();
 ctx.plugin(contextRingPlugin);
@@ -55,7 +55,7 @@ ctx.on("context-ring/update", (session, usage) => {
 ### 3. React SVG Visual Ring
 
 ```tsx
-import { ContextRing } from "@deepseek-ai/dsh-context-ring/client";
+import { ContextRing } from "dsh-context-ring/client";
 
 export function ChatHeader({ usage }) {
   return (

@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-context-ring
+# dsh-context-ring
 
 > **DSH 上下文环插件**：DeepSeek Harness (DSH) 实时 Token 归因、提示词结构分解与交互式可视化环形组件。
 

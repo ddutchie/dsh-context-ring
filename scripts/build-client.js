@@ -34,7 +34,7 @@ ${rawCode}
   // 1. DSH web client module loader:
   if (typeof window !== "undefined" && window.__ModuleLoader__ && typeof window.__ModuleLoader__.load === "function") {
     window.__ModuleLoader__.load({
-      id: "@deepseek-ai/dsh-context-ring",
+      id: "dsh-context-ring",
       factory: function(require) {
         var mod = { exports: {} };
         factory(require, mod.exports, mod);

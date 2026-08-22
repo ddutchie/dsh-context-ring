@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-context-ring",
+  "name": "dsh-context-ring",
   "description": "Token provenance and prompt composition breakdown projection for DeepSeek Harness (DSH)",
   "version": "0.1.0",
   "type": "module",
