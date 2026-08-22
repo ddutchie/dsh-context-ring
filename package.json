@@ -1,0 +1,87 @@
+{
+  "name": "@deepseek-ai/dsh-context-ring",
+  "description": "Token provenance and prompt composition breakdown projection for DeepSeek Harness (DSH)",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./projection": {
+      "types": "./lib/types/projection.d.ts",
+      "default": "./lib/projection.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "none"
+    },
+    "client": {
+      "entry": "lib/client/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "cordis",
+    "context",
+    "tokens",
+    "analytics",
+    "visualization"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "file:../cairn/node_modules/@deepseek-ai/cordis",
+    "@deepseek-ai/dsh-session": "file:../cairn/node_modules/@deepseek-ai/dsh-session",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "file:../cairn/node_modules/react",
+    "react-dom": "file:../cairn/node_modules/react-dom",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
