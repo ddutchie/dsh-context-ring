@@ -39,7 +39,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && esbuild src/client/index.ts --bundle --format=cjs --external:react --external:react-dom --external:react/jsx-runtime --outfile=lib/client/index.js",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
@@ -80,6 +80,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "esbuild": "^0.25.0"
   }
 }
