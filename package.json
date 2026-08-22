@@ -31,11 +31,8 @@
     "LICENSE"
   ],
   "dsh": {
-    "bundle": {
-      "patch": "none"
-    },
     "client": {
-      "entry": "lib/client/index.js"
+      "platform": "web"
     }
   },
   "scripts": {
