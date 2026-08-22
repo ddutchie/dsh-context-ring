@@ -22,13 +22,13 @@ const DEFAULT_COLORS = {
   skills: "#ec4899",
   toolOutputs: "#06b6d4",
   conversation: "#22c55e",
-  track: "rgba(128, 128, 128, 0.15)",
+  track: "rgba(128, 128, 128, 0.2)",
 };
 
 export const ContextRing: React.FC<ContextRingProps> = ({
   usage,
-  size = 28,
-  strokeWidth = 3,
+  size = 20,
+  strokeWidth = 2.5,
   className,
   colors = DEFAULT_COLORS,
 }) => {
@@ -37,8 +37,14 @@ export const ContextRing: React.FC<ContextRingProps> = ({
   const circumference = 2 * Math.PI * radius;
 
   const segments = useMemo(() => {
-    if (!usage || !usage.breakdown || usage.promptTokens <= 0) return [];
-    const b = usage.breakdown;
+    if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return [];
+    const b: ContextRingBreakdown = usage.breakdown ?? {
+      systemPrompt: Math.min(usage.promptTokens, 350),
+      tools: Math.min(Math.max(0, usage.promptTokens - 350), 2650),
+      skills: 0,
+      toolOutputs: 0,
+      conversation: Math.max(0, usage.promptTokens - 3000),
+    };
     const total = usage.promptTokens;
 
     const items: Array<{ key: keyof ContextRingBreakdown; color: string; value: number }> = [
@@ -54,7 +60,7 @@ export const ContextRing: React.FC<ContextRingProps> = ({
       .filter((item) => item.value > 0)
       .map((item) => {
         const ratio = item.value / total;
-        const length = ratio * circumference;
+        const length = Math.max(1, ratio * circumference);
         const offset = currentOffset;
         currentOffset += length;
         return {
@@ -67,7 +73,7 @@ export const ContextRing: React.FC<ContextRingProps> = ({
   }, [usage, circumference, colors]);
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={className} style={{ transform: "rotate(-90deg)" }}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={className} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
       <circle
         cx={center}
         cy={center}
@@ -87,7 +93,6 @@ export const ContextRing: React.FC<ContextRingProps> = ({
           strokeWidth={strokeWidth}
           strokeDasharray={seg.dashArray}
           strokeDashoffset={seg.dashOffset}
-          strokeLinecap="round"
           style={{ transition: "stroke-dasharray 0.3s ease, stroke-dashoffset 0.3s ease" }}
         />
       ))}
