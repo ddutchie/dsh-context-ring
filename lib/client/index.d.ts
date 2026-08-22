@@ -3,6 +3,7 @@ import { type ContextRingProps } from "./ContextRing.js";
 export * from "./ContextRing.js";
 /**
  * Standard DSH / Cairn client entry point.
+ * Registers the Context Ring badge into the chat footer / composer dock slot.
  */
 export declare function apply(ctx: any): void;
 export declare function activate(ui: any): void;
