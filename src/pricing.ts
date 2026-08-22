@@ -10,6 +10,22 @@ export const DEFAULT_MODEL_PRICING: Record<string, ModelPricingRate> = {
   "gpt-4o-mini": { input: 0.15, output: 0.60, cacheRead: 0.075 },
 };
 
+export const DEFAULT_MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  "deepseek-reasoner": 64_000,
+  "deepseek-chat": 128_000,
+  "deepseek-v3": 128_000,
+  "deepseek-v4-flash": 128_000,
+  "claude-3-7-sonnet": 200_000,
+  "claude-3-5-sonnet": 200_000,
+  "claude-3-5-haiku": 200_000,
+  "gpt-4o": 128_000,
+  "gpt-4o-mini": 128_000,
+  "o1": 200_000,
+  "o3-mini": 200_000,
+  "gemini-1.5-pro": 1_000_000,
+  "gemini-2.0-flash": 1_000_000,
+};
+
 export function calculateTokenCost(
   usage: {
     promptTokens: number;

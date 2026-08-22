@@ -76,7 +76,12 @@ export const ContextRingWidget: React.FC<{ usage?: ContextRingUsage }> = ({ usag
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#27272a)]">
             <div className="flex items-center gap-2">
               <ContextRing usage={usage} size={18} strokeWidth={3} />
+              <div className="flex flex-col">
               <span className="font-semibold text-sm">Context Breakdown</span>
+              <span className="text-[0.7rem] text-[var(--text-tertiary,#71717a)] font-mono">
+                {Math.round((promptTokens / (usage.contextLimit || 128000)) * 100)}% Full (~{formatTokens(promptTokens)} / {formatTokens(usage.contextLimit || 128000)})
+              </span>
+            </div>
             </div>
             <button
               type="button"

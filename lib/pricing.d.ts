@@ -1,5 +1,6 @@
 import type { ModelPricingRate } from "./types.js";
 export declare const DEFAULT_MODEL_PRICING: Record<string, ModelPricingRate>;
+export declare const DEFAULT_MODEL_CONTEXT_LIMITS: Record<string, number>;
 export declare function calculateTokenCost(usage: {
     promptTokens: number;
     completionTokens: number;

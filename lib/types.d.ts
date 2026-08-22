@@ -13,6 +13,8 @@ export interface ContextRingUsage {
     cacheCreationTokens?: number;
     costUsd?: number;
     costEstimated?: boolean;
+    contextLimit?: number;
+    contextWindow?: number;
     breakdown: ContextRingBreakdown;
 }
 export interface ModelPricingRate {
@@ -23,6 +25,7 @@ export interface ModelPricingRate {
 }
 export interface ContextRingPluginConfig {
     pricing?: Record<string, ModelPricingRate> | ((model: string) => ModelPricingRate | undefined);
+    contextLimits?: Record<string, number> | ((model: string) => number | undefined);
     charsPerToken?: number;
 }
 //# sourceMappingURL=types.d.ts.map

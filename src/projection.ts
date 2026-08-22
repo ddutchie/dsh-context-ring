@@ -1,5 +1,5 @@
 import type { ContextRingUsage, ContextRingBreakdown, ModelPricingRate } from "./types.js";
-import { calculateTokenCost, DEFAULT_MODEL_PRICING } from "./pricing.js";
+import { calculateTokenCost, DEFAULT_MODEL_PRICING, DEFAULT_MODEL_CONTEXT_LIMITS } from "./pricing.js";
 
 const CHARS_PER_TOKEN = 3.8;
 
@@ -19,6 +19,7 @@ export function foldSessionUsage(
   let cacheCreationTokens: number | undefined = undefined;
   let costUsd: number | undefined = undefined;
   let modelName = "";
+  let contextWindow: number | undefined = undefined;
   let hasUsage = false;
 
   let systemPromptChars = 0;
@@ -28,6 +29,12 @@ export function foldSessionUsage(
   let conversationChars = 0;
 
   for (const ev of events) {
+    if (ev.type === "request/context") {
+      const d = ev.data as { contextWindow?: number; model?: string; provider?: string } | undefined;
+      if (typeof d?.contextWindow === "number" && d.contextWindow > 0) contextWindow = d.contextWindow;
+      if (d?.model) modelName = d.model;
+    }
+
     if (ev.type === "request/header") {
       const d = ev.data as {
         header?: {
@@ -186,6 +193,8 @@ export function foldSessionUsage(
     }
   }
 
+  const contextLimit = contextWindow ?? (modelName ? DEFAULT_MODEL_CONTEXT_LIMITS[modelName] : undefined) ?? 128_000;
+
   return {
     promptTokens,
     completionTokens,
@@ -193,6 +202,8 @@ export function foldSessionUsage(
     cacheReadTokens,
     cacheCreationTokens,
     costUsd,
+    contextLimit,
+    contextWindow: contextLimit,
     breakdown,
   };
 }
