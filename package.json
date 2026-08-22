@@ -32,11 +32,14 @@
   ],
   "dsh": {
     "client": {
-      "platform": "web"
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && esbuild src/client/index.tsx --bundle --format=cjs --external:react --external:react-dom --external:react/jsx-runtime --outfile=lib/client/index.js",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-client.js",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
