@@ -47,6 +47,15 @@ export const ContextRing: React.FC<ContextRingProps> = ({
     };
     const total = usage.promptTokens;
 
+    // The ring is a FILL gauge: the arc length represents how full the context
+    // window is (promptTokens / contextLimit), not the breakdown as a whole
+    // circle. The filled arc is then SUBDIVIDED by the breakdown proportions so
+    // the same glyph shows both "how full" and "made of what"; the remainder
+    // stays as the empty track. Falls back to a full ring only if no limit.
+    const contextLimit = usage.contextLimit || usage.contextWindow || 0;
+    const fillFraction = contextLimit > 0 ? Math.min(1, total / contextLimit) : 1;
+    const filledArc = fillFraction * circumference;
+
     const items: Array<{ key: keyof ContextRingBreakdown; color: string; value: number }> = [
       { key: "systemPrompt", color: colors.system ?? DEFAULT_COLORS.system, value: b.systemPrompt },
       { key: "tools", color: colors.tools ?? DEFAULT_COLORS.tools, value: b.tools },
@@ -59,8 +68,10 @@ export const ContextRing: React.FC<ContextRingProps> = ({
     return items
       .filter((item) => item.value > 0)
       .map((item) => {
-        const ratio = item.value / total;
-        const length = Math.max(1, ratio * circumference);
+        // Each breakdown slice takes its share OF THE FILLED ARC (value/total),
+        // scaled by the fill fraction — so the coloured segments together span
+        // exactly `filledArc`, and the rest of the circle is the empty track.
+        const length = (item.value / total) * filledArc;
         const offset = currentOffset;
         currentOffset += length;
         return {
@@ -69,7 +80,8 @@ export const ContextRing: React.FC<ContextRingProps> = ({
           dashArray: `${length} ${circumference - length}`,
           dashOffset: -offset,
         };
-      });
+      })
+      .filter((seg) => parseFloat(seg.dashArray) > 0);
   }, [usage, circumference, colors]);
 
   return (

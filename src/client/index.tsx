@@ -33,33 +33,30 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
     return () => window.removeEventListener("mousedown", handleDown);
   }, [open]);
 
-  // Read from props.usage (Cairn) or projections (DSH token-meter).
+    // Pure DSH plugin: read the token-meter session projections directly, with
+  // DSH's own field names. (Cairn does not use this widget — it renders its own
+  // ring from foldSessionUsage — so there is no host-remapping here. A host that
+  // wants this widget just needs to provide the standard DSH projections.)
   // DSH view shapes (dsh-v0.1.1-rc.2 packages/llm/token-meter):
   //   tokenUsage      → { uncachedInputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }
   //   contextPressure → { contextWindow?, pressureTokens?, projectedTokens? }
   //   contextBreakdown→ { systemTokens, toolsTokens, messageTokens }
-  const tokenUsage = props.useProjection ? props.useProjection("tokenUsage") : undefined;
-  const contextPressure = props.useProjection ? props.useProjection("contextPressure") : undefined;
-  const contextBreakdown = props.useProjection ? props.useProjection("contextBreakdown") : undefined;
+  const useProjection = props.useProjection;
+  const tokenUsage: any = useProjection ? useProjection("tokenUsage") : undefined;
+  const contextPressure: any = useProjection ? useProjection("contextPressure") : undefined;
+  const contextBreakdown: any = useProjection ? useProjection("contextBreakdown") : undefined;
 
-  // Prompt (input-side) tokens: prefer the context-pressure figure (input +
-  // cache traffic for the NEXT request), else derive from tokenUsage buckets
-  // (uncached input + cache read). Support both the DSH field names and the
-  // Cairn-style aliases (inputTokens/current/capacity) for back-compat.
-  const tu: any = tokenUsage;
-  const cp: any = contextPressure;
-  const derivedInput =
-    (tu?.uncachedInputTokens ?? tu?.inputTokens ?? 0) + (tu?.cacheReadTokens ?? 0);
-  const promptFromPressure = cp?.pressureTokens ?? cp?.current;
-  const usage: ContextRingUsage | undefined = props.usage ?? (tokenUsage || contextPressure ? {
-    promptTokens: promptFromPressure ?? derivedInput ?? 0,
-    completionTokens: tu?.outputTokens ?? 0,
-    reasoningTokens: tu?.reasoningTokens ?? 0,
-    cacheReadTokens: tu?.cacheReadTokens ?? 0,
-    cacheCreationTokens: tu?.cacheWriteTokens ?? tu?.cacheCreationTokens ?? 0,
-    costUsd: tu?.costUsd,
-    contextLimit: cp?.contextWindow ?? cp?.capacity,
-    contextWindow: cp?.contextWindow ?? cp?.capacity,
+  // Prompt (input-side) tokens for THIS/NEXT request: the context-pressure
+  // figure (input + cache traffic), else derive from tokenUsage buckets
+  // (uncached input + cache read).
+  const derivedInput = (tokenUsage?.uncachedInputTokens ?? 0) + (tokenUsage?.cacheReadTokens ?? 0);
+  const usage: ContextRingUsage | undefined = (tokenUsage || contextPressure) ? {
+    promptTokens: contextPressure?.pressureTokens ?? derivedInput ?? 0,
+    completionTokens: tokenUsage?.outputTokens ?? 0,
+    cacheReadTokens: tokenUsage?.cacheReadTokens ?? 0,
+    cacheCreationTokens: tokenUsage?.cacheWriteTokens ?? 0,
+    contextLimit: contextPressure?.contextWindow,
+    contextWindow: contextPressure?.contextWindow,
     breakdown: contextBreakdown ? {
       systemPrompt: contextBreakdown.systemTokens ?? 0,
       tools: contextBreakdown.toolsTokens ?? 0,
@@ -67,7 +64,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
       toolOutputs: 0,
       conversation: contextBreakdown.messageTokens ?? 0,
     } : undefined,
-  } : undefined);
+  } : undefined;
 
 
   if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return null;
@@ -98,13 +95,26 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   const contextLimit = usage.contextLimit || usage.contextWindow || 128000;
   const percentFull = Math.min(100, Math.round((promptTokens / contextLimit) * 100));
 
-  // Inline styles only — this bundle runs in hosts WITHOUT Tailwind (the dsh
-  // web shell), so utility classes would be inert and the popover would render
-  // in normal flow ("pops open") instead of floating. CSS var fallbacks keep it
-  // themable where the host defines them (Cairn), sane defaults elsewhere.
+  // Inline styles only — this bundle runs in the DSH web shell, which has no
+  // Tailwind, so utility classes would be inert and the popover would render in
+  // normal flow ("pops open") instead of floating.
+  //
+  // Theme: DSH's semantic alias tokens (--dsw-alias-*). They resolve to
+  // different values under :root vs body[data-ds-dark-theme], so the widget
+  // follows the host's light/dark automatically with no detection of its own.
+  // Hardcoded values are last-resort fallbacks if a host omits the tokens.
+  const C = {
+    textPrimary: "var(--dsw-alias-label-primary, #1b1b1c)",
+    textSecondary: "var(--dsw-alias-label-secondary, #61666b)",
+    textTertiary: "var(--dsw-alias-label-tertiary, #81858c)",
+    surface: "var(--dsw-alias-bg-base, #ffffff)",
+    surface2: "var(--dsw-alias-interactive-bg-hover-solid, rgba(128,128,128,0.10))",
+    surface3: "var(--dsw-alias-interactive-bg-hover-solid, rgba(128,128,128,0.18))",
+    border: "var(--dsw-alias-border-l, rgba(128,128,128,0.25))",
+  };
   const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between" };
-  const label: React.CSSProperties = { color: "var(--text-secondary,#a1a1aa)" };
-  const val: React.CSSProperties = { fontWeight: 500, color: "var(--text-primary,#f4f4f5)" };
+  const label: React.CSSProperties = { color: C.textSecondary };
+  const val: React.CSSProperties = { fontWeight: 500, color: C.textPrimary };
 
   return (
     <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }} ref={popoverRef}>
@@ -118,18 +128,18 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
           gap: 8,
           padding: "4px 10px",
           borderRadius: 9999,
-          background: "var(--surface-2,rgba(128,128,128,0.1))",
-          border: "1px solid var(--border,rgba(128,128,128,0.2))",
+          background: C.surface2,
+          border: `1px solid ${C.border}`,
           fontSize: "0.75rem",
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          color: "var(--text-secondary,#888)",
+          color: C.textSecondary,
           cursor: "pointer",
           userSelect: "none",
           lineHeight: 1,
         }}
       >
         <ContextRing usage={usage} size={14} strokeWidth={2.5} />
-        <span style={{ fontWeight: 500, color: "var(--text-primary,#ddd)" }}>
+        <span style={{ fontWeight: 500, color: C.textPrimary }}>
           {formatTokens(promptTokens)}
         </span>
       </button>
@@ -146,23 +156,23 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
             width: 288,
             padding: 14,
             borderRadius: 12,
-            background: "var(--surface-1,#18181b)",
-            border: "1px solid var(--border,#27272a)",
+            background: C.surface,
+            border: `1px solid ${C.border}`,
             boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
             fontSize: "0.75rem",
-            color: "var(--text-primary,#f4f4f5)",
+            color: C.textPrimary,
             userSelect: "none",
           }}
         >
           {/* Header */}
-          <div style={{ ...row, paddingBottom: 8, borderBottom: "1px solid var(--border,#27272a)" }}>
-            <span style={{ fontWeight: 600, color: "var(--text-primary,#f4f4f5)" }}>Context Breakdown</span>
+          <div style={{ ...row, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ fontWeight: 600, color: C.textPrimary }}>Context Breakdown</span>
             <span style={{
               fontSize: "0.7rem",
               padding: "2px 6px",
               borderRadius: 4,
-              background: "var(--surface-2,#27272a)",
-              color: "var(--text-secondary,#a1a1aa)",
+              background: C.surface2,
+              color: C.textSecondary,
             }}>
               {percentFull}% Full (~{formatTokens(promptTokens)} / {formatTokens(contextLimit)})
             </span>
