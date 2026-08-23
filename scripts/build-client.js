@@ -50,10 +50,10 @@ ${rawCode}
 })();
 `;
 
-  const outDir = path.join(__dirname, "../lib/client");
+  const outDir = path.join(__dirname, "../lib");
   fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, "index.js"), wrapped, "utf8");
-  console.log("Built universal DSH + Cairn client bundle: lib/client/index.js");
+  fs.writeFileSync(path.join(outDir, "client.js"), wrapped, "utf8");
+  console.log("Built universal DSH + Cairn client bundle: lib/client.js");
 }
 
 build().catch((err) => {

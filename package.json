@@ -16,7 +16,7 @@
     },
     "./client": {
       "types": "./lib/types/client/index.d.ts",
-      "default": "./lib/client/index.js"
+      "default": "./lib/client.js"
     },
     "./types": {
       "types": "./lib/types/types.d.ts",
@@ -25,7 +25,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib",
+    "lib/index.js",
+    "lib/projection.js",
+    "lib/pricing.js",
+    "lib/types.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts",
     "README.md",
     "README.zh.md",
     "LICENSE"
@@ -39,7 +44,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/build-client.js",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.client.json && node scripts/build-client.js",
+    "prepare": "npm run build",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },

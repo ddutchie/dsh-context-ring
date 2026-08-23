@@ -177,7 +177,22 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   );
 };
 
+/**
+ * Client services this browser plugin reads off the client `ctx`. Cordis
+ * inject-gates service access: `ctx.slots` is only readable once `slots` is
+ * declared here. The `conversation.*` dock slots we register into are declared
+ * by `@deepseek-ai/dsh-client-ui-conversation` (a load-order edge carried by
+ * this package's `dsh.client.inject`), so `slots` is all the runtime services
+ * this widget needs.
+ */
+export const inject = ["slots"];
+
 export function apply(ctx: any): void {
+  // dsh client host: a Cordis context with the injected `slots` service.
+  // Cordis inject-gates EVERY property read on the ctx proxy, so we must not
+  // probe host-specific properties (e.g. registerChatFooter) on it — that
+  // throws "cannot get property … without inject". The `slots` branch is the
+  // canonical dsh path and is mutually exclusive with the Cairn `ui` path.
   if (ctx?.slots?.inject) {
     ctx.slots.inject("conversation.composer.dock", () =>
       ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget)
@@ -185,11 +200,18 @@ export function apply(ctx: any): void {
     ctx.slots.inject("conversation.input.dock", () =>
       ctx.slots.register({ name: "conversation.input.dock", id: "context-ring", order: 5 }, ContextRingWidget)
     );
-  } else if (ctx?.slots?.register) {
-    ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget);
+    return;
   }
 
-  if (ctx?.registerChatFooter) {
+  // A slots-capable host without the inject() layering (register directly).
+  if (ctx?.slots?.register) {
+    ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget);
+    return;
+  }
+
+  // Cairn `ui` API host: a plain object (not a Cordis proxy), so probing
+  // registerChatFooter is safe here.
+  if (typeof ctx?.registerChatFooter === "function") {
     ctx.registerChatFooter("context-ring", ContextRingWidget, 5);
   }
 }
@@ -199,6 +221,7 @@ export function activate(ui: any): void {
 }
 
 export default {
+  inject,
   apply,
   activate,
   ContextRing,

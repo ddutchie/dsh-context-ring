@@ -22,4 +22,15 @@ export declare class ContextRingService extends Service {
     clear(sessionId: string): void;
 }
 export declare function contextRingPlugin(ctx: Context, config?: ContextRingPluginConfig): void;
+/**
+ * Host plugin body — the cordis entry point dsh's Loader mounts. Mounting the
+ * package (via a roster row / cordis.yml) provides the `contextRing` host
+ * projection service and, crucially, lets the client-modules loader discover
+ * this package's `dsh.client` declaration and serve its `exports["./client"]`
+ * browser bundle. Named exports (`foldSessionUsage`, `ContextRingService`, …)
+ * remain available for direct import (e.g. an embedding host like Cairn).
+ * @param ctx - the Cordis context the Loader mounts this plugin onto.
+ * @param config - optional plugin config (custom pricing lookup).
+ */
+export declare function apply(ctx: Context, config?: ContextRingPluginConfig): void;
 //# sourceMappingURL=index.d.ts.map
