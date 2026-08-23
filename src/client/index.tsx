@@ -12,7 +12,7 @@ function formatTokens(num?: number): string {
 }
 
 export interface ContextRingWidgetProps {
-  usage?: ContextRingUsage;
+  /** DSH session-projection accessor — the sole data source (token-meter views). */
   useProjection?: (key: string) => any;
   useSession?: (selector: (state: any) => any) => any;
   t?: (key: string, args?: any) => string;
@@ -33,12 +33,10 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
     return () => window.removeEventListener("mousedown", handleDown);
   }, [open]);
 
-  // Two host input paths, both supported:
-  //  1. props.usage — a host that already has usage in this widget's shape hands
-  //     it straight in (Cairn passes its own usage into chat.transcript.footer,
-  //     doing the remap on its side).
-  //  2. props.useProjection — the DSH web shell: read token-meter session
-  //     projections directly, with DSH's own field names.
+  // Purely DSH-native: read the token-meter session projections via the
+  // standard DSH `useProjection` prop. A host that wants this widget provides
+  // these projections (Cairn synthesises the same view shapes from its own
+  // usage on its side, so no host-specific code lives here).
   // DSH view shapes (dsh-v0.1.1-rc.2 packages/llm/token-meter):
   //   tokenUsage      → { uncachedInputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }
   //   contextPressure → { contextWindow?, pressureTokens?, projectedTokens? }
@@ -52,7 +50,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   // figure (input + cache traffic), else derive from tokenUsage buckets
   // (uncached input + cache read).
   const derivedInput = (tokenUsage?.uncachedInputTokens ?? 0) + (tokenUsage?.cacheReadTokens ?? 0);
-  const usage: ContextRingUsage | undefined = props.usage ?? ((tokenUsage || contextPressure) ? {
+  const usage: ContextRingUsage | undefined = (tokenUsage || contextPressure) ? {
     promptTokens: contextPressure?.pressureTokens ?? derivedInput ?? 0,
     completionTokens: tokenUsage?.outputTokens ?? 0,
     cacheReadTokens: tokenUsage?.cacheReadTokens ?? 0,
@@ -66,7 +64,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
       toolOutputs: 0,
       conversation: contextBreakdown.messageTokens ?? 0,
     } : undefined,
-  } : undefined);
+  } : undefined;
 
 
   if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return null;

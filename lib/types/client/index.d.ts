@@ -1,9 +1,8 @@
 import React from "react";
 import { type ContextRingProps } from "./ContextRing.js";
-import type { ContextRingUsage } from "../types.js";
 export * from "./ContextRing.js";
 export interface ContextRingWidgetProps {
-    usage?: ContextRingUsage;
+    /** DSH session-projection accessor — the sole data source (token-meter views). */
     useProjection?: (key: string) => any;
     useSession?: (selector: (state: any) => any) => any;
     t?: (key: string, args?: any) => string;
