@@ -16,6 +16,19 @@ export interface ContextRingWidgetProps {
   useProjection?: (key: string) => any;
   useSession?: (selector: (state: any) => any) => any;
   t?: (key: string, args?: any) => string;
+  /**
+   * Optional explicit breakdown rows (label + count + color), in order. A richer
+   * host supplies its own set (e.g. rules/MCP/subagent-definitions); when
+   * omitted the widget derives the default 5 from the projections. Used for BOTH
+   * the ring slices and the popover list.
+   */
+  categories?: Array<{ label: string; count: number; color: string }>;
+  /**
+   * Optional fill-gauge colour for the ring arc — a string, or a function of the
+   * fill fraction (0–1) for thresholds (e.g. warn/danger as the window fills).
+   * When set, the ring arc is a single colour; the breakdown stays in the popover.
+   */
+  ringFillColor?: string | ((fillFraction: number) => string);
 }
 
 export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
@@ -84,13 +97,17 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
     conversation: Math.max(0, promptTokens - 3000),
   };
 
-  const categories = [
+  // Breakdown rows for the ring + popover. A host may pass its own ordered set
+  // (props.categories); otherwise derive the default 5 from the breakdown.
+  const categories = props.categories ?? [
     { label: "System prompt", count: b.systemPrompt, color: "#6366f1" },
     { label: "Tool definitions", count: b.tools, color: "#8b5cf6" },
     { label: "Skills", count: b.skills, color: "#ec4899" },
     { label: "Tool outputs", count: b.toolOutputs, color: "#06b6d4" },
     { label: "Conversation", count: b.conversation, color: "#22c55e" },
   ];
+  // Ring slices mirror the popover categories (key from the label).
+  const ringCategories = categories.map((c) => ({ key: c.label, value: c.count, color: c.color }));
 
   const contextLimit = usage.contextLimit || usage.contextWindow || 128000;
   const percentFull = Math.min(100, Math.round((promptTokens / contextLimit) * 100));
@@ -140,7 +157,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
           lineHeight: 1,
         }}
       >
-        <ContextRing usage={usage} size={14} strokeWidth={2.5} />
+        <ContextRing usage={usage} size={14} strokeWidth={2.5} categories={ringCategories} fillColor={props.ringFillColor} />
         <span style={{ fontWeight: 500, color: C.textPrimary }}>
           {formatTokens(promptTokens)}
         </span>

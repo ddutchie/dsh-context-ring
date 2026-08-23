@@ -6,6 +6,23 @@ export interface ContextRingWidgetProps {
     useProjection?: (key: string) => any;
     useSession?: (selector: (state: any) => any) => any;
     t?: (key: string, args?: any) => string;
+    /**
+     * Optional explicit breakdown rows (label + count + color), in order. A richer
+     * host supplies its own set (e.g. rules/MCP/subagent-definitions); when
+     * omitted the widget derives the default 5 from the projections. Used for BOTH
+     * the ring slices and the popover list.
+     */
+    categories?: Array<{
+        label: string;
+        count: number;
+        color: string;
+    }>;
+    /**
+     * Optional fill-gauge colour for the ring arc — a string, or a function of the
+     * fill fraction (0–1) for thresholds (e.g. warn/danger as the window fills).
+     * When set, the ring arc is a single colour; the breakdown stays in the popover.
+     */
+    ringFillColor?: string | ((fillFraction: number) => string);
 }
 export declare const ContextRingWidget: React.FC<ContextRingWidgetProps>;
 /**
