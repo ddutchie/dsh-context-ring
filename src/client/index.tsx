@@ -98,33 +98,87 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   const contextLimit = usage.contextLimit || usage.contextWindow || 128000;
   const percentFull = Math.min(100, Math.round((promptTokens / contextLimit) * 100));
 
+  // Inline styles only — this bundle runs in hosts WITHOUT Tailwind (the dsh
+  // web shell), so utility classes would be inert and the popover would render
+  // in normal flow ("pops open") instead of floating. CSS var fallbacks keep it
+  // themable where the host defines them (Cairn), sane defaults elsewhere.
+  const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between" };
+  const label: React.CSSProperties = { color: "var(--text-secondary,#a1a1aa)" };
+  const val: React.CSSProperties = { fontWeight: 500, color: "var(--text-primary,#f4f4f5)" };
+
   return (
-    <div className="relative inline-flex items-center" ref={popoverRef}>
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }} ref={popoverRef}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface-2,rgba(128,128,128,0.1))] hover:bg-[var(--surface-3,rgba(128,128,128,0.18))] border border-[var(--border,rgba(128,128,128,0.2))] text-xs font-mono text-[var(--text-secondary,#aaa)] transition-all cursor-pointer shadow-sm select-none"
         title="Click to view full context & token breakdown"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "4px 10px",
+          borderRadius: 9999,
+          background: "var(--surface-2,rgba(128,128,128,0.1))",
+          border: "1px solid var(--border,rgba(128,128,128,0.2))",
+          fontSize: "0.75rem",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          color: "var(--text-secondary,#888)",
+          cursor: "pointer",
+          userSelect: "none",
+          lineHeight: 1,
+        }}
       >
         <ContextRing usage={usage} size={14} strokeWidth={2.5} />
-        <span className="font-medium text-[var(--text-primary,#ddd)]">
+        <span style={{ fontWeight: 500, color: "var(--text-primary,#ddd)" }}>
           {formatTokens(promptTokens)}
         </span>
       </button>
 
-      {/* Popover Breakdown Card */}
+      {/* Popover Breakdown Card — floats above the button (position: absolute). */}
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 z-50 w-72 p-3.5 rounded-xl bg-[var(--surface-1,#18181b)] border border-[var(--border,#27272a)] shadow-2xl backdrop-blur-md text-xs text-[var(--text-primary,#f4f4f5)] animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto">
+        <div
+          style={{
+            position: "absolute",
+            bottom: "100%",
+            left: 0,
+            marginBottom: 8,
+            zIndex: 50,
+            width: 288,
+            padding: 14,
+            borderRadius: 12,
+            background: "var(--surface-1,#18181b)",
+            border: "1px solid var(--border,#27272a)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+            fontSize: "0.75rem",
+            color: "var(--text-primary,#f4f4f5)",
+            userSelect: "none",
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between pb-2 border-b border-[var(--border,#27272a)]">
-            <span className="font-semibold text-xs text-[var(--text-primary,#f4f4f5)]">Context Breakdown</span>
-            <span className="text-[0.7rem] font-mono px-1.5 py-0.5 rounded bg-[var(--surface-2,#27272a)] text-[var(--text-secondary,#a1a1aa)]">
+          <div style={{ ...row, paddingBottom: 8, borderBottom: "1px solid var(--border,#27272a)" }}>
+            <span style={{ fontWeight: 600, color: "var(--text-primary,#f4f4f5)" }}>Context Breakdown</span>
+            <span style={{
+              fontSize: "0.7rem",
+              padding: "2px 6px",
+              borderRadius: 4,
+              background: "var(--surface-2,#27272a)",
+              color: "var(--text-secondary,#a1a1aa)",
+            }}>
               {percentFull}% Full (~{formatTokens(promptTokens)} / {formatTokens(contextLimit)})
             </span>
           </div>
 
           {/* Breakdown progress bar */}
-          <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-[var(--surface-3,#3f3f46)] my-3 gap-0.5">
+          <div style={{
+            width: "100%",
+            height: 6,
+            borderRadius: 9999,
+            overflow: "hidden",
+            display: "flex",
+            gap: 2,
+            background: "var(--surface-3,#3f3f46)",
+            margin: "12px 0",
+          }}>
             {categories.map((c, i) => {
               if (!c.count || c.count <= 0) return null;
               const width = Math.max(1, (c.count / promptTokens) * 100);
@@ -139,16 +193,16 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
           </div>
 
           {/* Prompt Breakdown List */}
-          <div className="space-y-1.5 text-[0.75rem] font-mono">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {categories.map((c, i) => {
               if (!c.count || c.count <= 0) return null;
               return (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="text-[var(--text-secondary,#a1a1aa)] font-sans">{c.label}</span>
+                <div key={i} style={row}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 9999, flexShrink: 0, backgroundColor: c.color }} />
+                    <span style={label}>{c.label}</span>
                   </div>
-                  <span className="font-medium text-[var(--text-primary,#f4f4f5)]">{formatTokens(c.count)}</span>
+                  <span style={val}>{formatTokens(c.count)}</span>
                 </div>
               );
             })}
@@ -156,14 +210,14 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
 
           {/* Output tokens */}
           {completionTokens > 0 && (
-            <div className="pt-2 border-t border-[var(--border,#27272a)] space-y-1 text-[0.75rem] font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-[var(--text-secondary,#a1a1aa)] font-sans">Output / Completion</span>
-                <span className="font-medium">{formatTokens(completionTokens)}</span>
+            <div style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border,#27272a)", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={row}>
+                <span style={label}>Output / Completion</span>
+                <span style={{ fontWeight: 500 }}>{formatTokens(completionTokens)}</span>
               </div>
               {reasoningTokens > 0 && (
-                <div className="flex items-center justify-between text-[var(--text-tertiary,#71717a)]">
-                  <span className="font-sans">└ Thinking / Reasoning</span>
+                <div style={{ ...row, color: "var(--text-tertiary,#71717a)" }}>
+                  <span>└ Thinking / Reasoning</span>
                   <span>{formatTokens(reasoningTokens)}</span>
                 </div>
               )}
@@ -172,17 +226,17 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
 
           {/* Prompt Cache */}
           {(cacheRead > 0 || cacheCreation > 0) && (
-            <div className="pt-2 mt-2 border-t border-[var(--border,#27272a)] flex items-center justify-between text-[0.75rem] font-mono">
-              <span className="text-[var(--text-secondary,#a1a1aa)] font-sans">Prompt Cache Read</span>
-              <span className="text-emerald-400 font-medium">{formatTokens(cacheRead)} tokens</span>
+            <div style={{ ...row, paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border,#27272a)" }}>
+              <span style={label}>Prompt Cache Read</span>
+              <span style={{ color: "#34d399", fontWeight: 500 }}>{formatTokens(cacheRead)} tokens</span>
             </div>
           )}
 
           {/* Cost */}
           {costUsd != null && (
-            <div className="pt-2 mt-2 border-t border-[var(--border,#27272a)] flex items-center justify-between text-[0.75rem] font-mono">
-              <span className="text-[var(--text-secondary,#a1a1aa)] font-sans">Turn Cost</span>
-              <span className="text-amber-400 font-semibold">${costUsd < 0.01 ? "<0.01" : costUsd.toFixed(4)}</span>
+            <div style={{ ...row, paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border,#27272a)" }}>
+              <span style={label}>Turn Cost</span>
+              <span style={{ color: "#fbbf24", fontWeight: 600 }}>${costUsd < 0.01 ? "<0.01" : costUsd.toFixed(4)}</span>
             </div>
           )}
         </div>
@@ -208,11 +262,11 @@ export function apply(ctx: any): void {
   // throws "cannot get property … without inject". The `slots` branch is the
   // canonical dsh path and is mutually exclusive with the Cairn `ui` path.
   if (ctx?.slots?.inject) {
+    // One home only: the composer dock (the stats-line family), so the ring
+    // sits alongside the session token stats. Registering into input.dock too
+    // would render the widget twice.
     ctx.slots.inject("conversation.composer.dock", () =>
       ctx.slots.register({ name: "conversation.composer.dock", id: "context-ring", order: 5 }, ContextRingWidget)
-    );
-    ctx.slots.inject("conversation.input.dock", () =>
-      ctx.slots.register({ name: "conversation.input.dock", id: "context-ring", order: 5 }, ContextRingWidget)
     );
     return;
   }
