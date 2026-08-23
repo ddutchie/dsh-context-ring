@@ -33,20 +33,33 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
     return () => window.removeEventListener("mousedown", handleDown);
   }, [open]);
 
-  // Read from props.usage (Cairn) or projections (DSH)
+  // Read from props.usage (Cairn) or projections (DSH token-meter).
+  // DSH view shapes (dsh-v0.1.1-rc.2 packages/llm/token-meter):
+  //   tokenUsage      → { uncachedInputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }
+  //   contextPressure → { contextWindow?, pressureTokens?, projectedTokens? }
+  //   contextBreakdown→ { systemTokens, toolsTokens, messageTokens }
   const tokenUsage = props.useProjection ? props.useProjection("tokenUsage") : undefined;
   const contextPressure = props.useProjection ? props.useProjection("contextPressure") : undefined;
   const contextBreakdown = props.useProjection ? props.useProjection("contextBreakdown") : undefined;
 
+  // Prompt (input-side) tokens: prefer the context-pressure figure (input +
+  // cache traffic for the NEXT request), else derive from tokenUsage buckets
+  // (uncached input + cache read). Support both the DSH field names and the
+  // Cairn-style aliases (inputTokens/current/capacity) for back-compat.
+  const tu: any = tokenUsage;
+  const cp: any = contextPressure;
+  const derivedInput =
+    (tu?.uncachedInputTokens ?? tu?.inputTokens ?? 0) + (tu?.cacheReadTokens ?? 0);
+  const promptFromPressure = cp?.pressureTokens ?? cp?.current;
   const usage: ContextRingUsage | undefined = props.usage ?? (tokenUsage || contextPressure ? {
-    promptTokens: tokenUsage?.inputTokens ?? contextPressure?.current ?? 0,
-    completionTokens: tokenUsage?.outputTokens ?? 0,
-    reasoningTokens: tokenUsage?.reasoningTokens ?? 0,
-    cacheReadTokens: tokenUsage?.cacheReadTokens ?? 0,
-    cacheCreationTokens: tokenUsage?.cacheCreationTokens ?? 0,
-    costUsd: tokenUsage?.costUsd,
-    contextLimit: contextPressure?.capacity,
-    contextWindow: contextPressure?.capacity,
+    promptTokens: promptFromPressure ?? derivedInput ?? 0,
+    completionTokens: tu?.outputTokens ?? 0,
+    reasoningTokens: tu?.reasoningTokens ?? 0,
+    cacheReadTokens: tu?.cacheReadTokens ?? 0,
+    cacheCreationTokens: tu?.cacheWriteTokens ?? tu?.cacheCreationTokens ?? 0,
+    costUsd: tu?.costUsd,
+    contextLimit: cp?.contextWindow ?? cp?.capacity,
+    contextWindow: cp?.contextWindow ?? cp?.capacity,
     breakdown: contextBreakdown ? {
       systemPrompt: contextBreakdown.systemTokens ?? 0,
       tools: contextBreakdown.toolsTokens ?? 0,
@@ -55,6 +68,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
       conversation: contextBreakdown.messageTokens ?? 0,
     } : undefined,
   } : undefined);
+
 
   if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return null;
 
