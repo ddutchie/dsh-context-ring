@@ -33,10 +33,12 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
     return () => window.removeEventListener("mousedown", handleDown);
   }, [open]);
 
-    // Pure DSH plugin: read the token-meter session projections directly, with
-  // DSH's own field names. (Cairn does not use this widget — it renders its own
-  // ring from foldSessionUsage — so there is no host-remapping here. A host that
-  // wants this widget just needs to provide the standard DSH projections.)
+  // Two host input paths, both supported:
+  //  1. props.usage — a host that already has usage in this widget's shape hands
+  //     it straight in (Cairn passes its own usage into chat.transcript.footer,
+  //     doing the remap on its side).
+  //  2. props.useProjection — the DSH web shell: read token-meter session
+  //     projections directly, with DSH's own field names.
   // DSH view shapes (dsh-v0.1.1-rc.2 packages/llm/token-meter):
   //   tokenUsage      → { uncachedInputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }
   //   contextPressure → { contextWindow?, pressureTokens?, projectedTokens? }
@@ -50,7 +52,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   // figure (input + cache traffic), else derive from tokenUsage buckets
   // (uncached input + cache read).
   const derivedInput = (tokenUsage?.uncachedInputTokens ?? 0) + (tokenUsage?.cacheReadTokens ?? 0);
-  const usage: ContextRingUsage | undefined = (tokenUsage || contextPressure) ? {
+  const usage: ContextRingUsage | undefined = props.usage ?? ((tokenUsage || contextPressure) ? {
     promptTokens: contextPressure?.pressureTokens ?? derivedInput ?? 0,
     completionTokens: tokenUsage?.outputTokens ?? 0,
     cacheReadTokens: tokenUsage?.cacheReadTokens ?? 0,
@@ -64,7 +66,7 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
       toolOutputs: 0,
       conversation: contextBreakdown.messageTokens ?? 0,
     } : undefined,
-  } : undefined;
+  } : undefined);
 
 
   if (!usage || !usage.promptTokens || usage.promptTokens <= 0) return null;
@@ -95,22 +97,24 @@ export const ContextRingWidget: React.FC<ContextRingWidgetProps> = (props) => {
   const contextLimit = usage.contextLimit || usage.contextWindow || 128000;
   const percentFull = Math.min(100, Math.round((promptTokens / contextLimit) * 100));
 
-  // Inline styles only — this bundle runs in the DSH web shell, which has no
-  // Tailwind, so utility classes would be inert and the popover would render in
+  // Inline styles only — this bundle runs in hosts WITHOUT Tailwind (the DSH web
+  // shell), so utility classes would be inert and the popover would render in
   // normal flow ("pops open") instead of floating.
   //
-  // Theme: DSH's semantic alias tokens (--dsw-alias-*). They resolve to
-  // different values under :root vs body[data-ds-dark-theme], so the widget
-  // follows the host's light/dark automatically with no detection of its own.
-  // Hardcoded values are last-resort fallbacks if a host omits the tokens.
+  // Theme tokens chain across hosts so dark/light follows the host automatically:
+  //   1. DSH semantic tokens (--dsw-alias-*) — flip under body[data-ds-dark-theme]
+  //   2. Cairn tokens (--surface*, --text-*, --border) — set on <html data-theme>
+  //   3. hardcoded fallback (last resort if neither host provides them)
+  // Whichever host is active defines its own vars, so the widget re-themes with
+  // no host-specific code and no light/dark detection of its own.
   const C = {
-    textPrimary: "var(--dsw-alias-label-primary, #1b1b1c)",
-    textSecondary: "var(--dsw-alias-label-secondary, #61666b)",
-    textTertiary: "var(--dsw-alias-label-tertiary, #81858c)",
-    surface: "var(--dsw-alias-bg-base, #ffffff)",
-    surface2: "var(--dsw-alias-interactive-bg-hover-solid, rgba(128,128,128,0.10))",
-    surface3: "var(--dsw-alias-interactive-bg-hover-solid, rgba(128,128,128,0.18))",
-    border: "var(--dsw-alias-border-l, rgba(128,128,128,0.25))",
+    textPrimary: "var(--dsw-alias-label-primary, var(--text-primary, #e6e6e6))",
+    textSecondary: "var(--dsw-alias-label-secondary, var(--text-secondary, #a1a1aa))",
+    textTertiary: "var(--dsw-alias-label-tertiary, var(--text-tertiary, #71717a))",
+    surface: "var(--dsw-alias-bg-base, var(--surface, #18181b))",
+    surface2: "var(--dsw-alias-interactive-bg-hover-solid, var(--surface-2, rgba(128,128,128,0.10)))",
+    surface3: "var(--dsw-alias-interactive-bg-hover-solid, var(--surface-3, rgba(128,128,128,0.18)))",
+    border: "var(--dsw-alias-border-l, var(--border, rgba(128,128,128,0.25)))",
   };
   const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between" };
   const label: React.CSSProperties = { color: C.textSecondary };
